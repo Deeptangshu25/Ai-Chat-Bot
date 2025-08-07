@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 interface Message {
   id: number;
@@ -11,7 +13,8 @@ interface Message {
   text: string;
 }
 
-const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyBUNBQznhlM7JB4IqmZrjUIhcDeU677NpI";
+const API_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyBUNBQznhlM7JB4IqmZrjUIhcDeU677NpI";
 
 export default function ChatbotUI() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -20,21 +23,30 @@ export default function ChatbotUI() {
   const [pdfText, setPdfText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const chatRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const script = document.createElement("script");
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+    script.src =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
     script.onload = () => {
-      (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+      (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
     };
     document.body.appendChild(script);
   }, []);
+
+  useEffect(() => {
+    chatRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const parsePDF = async (file: File) => {
     const reader = new FileReader();
     reader.onload = async () => {
       const typedArray = new Uint8Array(reader.result as ArrayBuffer);
-      const pdf = await (window as any).pdfjsLib.getDocument({ data: typedArray }).promise;
+      const pdf = await (window as any).pdfjsLib
+        .getDocument({ data: typedArray })
+        .promise;
 
       let text = "";
       for (let i = 1; i <= pdf.numPages; i++) {
@@ -103,7 +115,8 @@ export default function ChatbotUI() {
 
       const data = await res.json();
 
-      const botText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "(No response)";
+      const botText =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text || "(No response)";
 
       const botReply: Message = {
         id: Date.now() + 1,
@@ -133,51 +146,86 @@ export default function ChatbotUI() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-gray-100 p-4">
-      <h1 className="text-2xl font-bold text-center mb-4">My Chatbot</h1>
-      <div className="flex-1 overflow-y-auto space-y-4">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-sky-200 to-purple-200 animate-fadeIn">
+      <motion.h1
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="text-3xl font-bold text-center text-gray-800 py-4 shadow-md bg-white"
+      >
+        💬 My Chatbot
+      </motion.h1>
+
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
         {messages.map((msg) => (
-          <div
+          <motion.div
             key={msg.id}
-            className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+            initial={{ opacity: 0, x: msg.sender === "user" ? 50 : -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4 }}
+            className={`flex ${
+              msg.sender === "user" ? "justify-end" : "justify-start"
+            }`}
           >
-            <Card className={`max-w-xs ${msg.sender === "user" ? "bg-blue-500 text-white" : "bg-white"}`}>
-              <CardContent className="p-3">
+            <Card
+              className={cn(
+                "max-w-md shadow-md",
+                msg.sender === "user"
+                  ? "bg-blue-600 text-white rounded-br-none"
+                  : "bg-white text-gray-800 rounded-bl-none"
+              )}
+            >
+              <CardContent className="p-4">
                 <p>{msg.text}</p>
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
         ))}
+
         {isTyping && (
-          <div className="flex justify-start">
-            <Card className="max-w-xs bg-white">
-              <CardContent className="p-3">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse" }}
+            className="flex justify-start"
+          >
+            <Card className="max-w-md bg-white">
+              <CardContent className="p-4">
                 <p className="italic text-gray-500">Typing...</p>
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
         )}
+
         {fileName && (
-          <div className="text-center text-sm text-green-600">1 file uploaded: {fileName}</div>
+          <p className="text-center text-sm text-green-700">
+            ✅ Uploaded: {fileName}
+          </p>
         )}
+        <div ref={chatRef} />
       </div>
 
-      <div className="mt-4 flex flex-col gap-2">
+      <div className="bg-white shadow-md p-4 flex flex-col md:flex-row items-center gap-2 sticky bottom-0">
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyPress}
           placeholder="Type your message..."
-          className="flex-1"
+          className="flex-1 rounded-md"
         />
         <input
           type="file"
           accept="application/pdf"
           onChange={handleFileChange}
           ref={fileInputRef}
-          className="text-sm"
+          className="text-sm text-gray-700"
         />
-        <Button onClick={sendMessage}>Send</Button>
+        <Button
+          onClick={sendMessage}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+        >
+          Send
+        </Button>
       </div>
     </div>
   );
